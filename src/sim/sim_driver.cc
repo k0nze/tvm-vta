@@ -31,6 +31,7 @@
 #include <unordered_map>
 #include <cstring>
 #include <sstream>
+#include <iostream>
 
 #include "../vmem/virtual_memory.h"
 
@@ -317,11 +318,18 @@ class Profiler {
 // TODO(tqchen,thierry): queue based event driven simulation.
 class Device {
  public:
+
   Device() {
     prof_ = Profiler::ThreadLocal();
     dram_ = DRAM::Global();
     ptlpp = TlppVerify::Global();
+    const char* env_trace_vta_fsim_instructions = std::getenv("TRACE_VTA_FSIM_INSTRUCTIONS");
+    if(std::string(env_trace_vta_fsim_instructions).compare("1") == 0) {
+      trace_instructions = true;
+    }
   }
+
+  bool trace_instructions = false;
 
   int Run(vta_phy_addr_t insn_phy_addr,
           uint32_t insn_count,
@@ -342,6 +350,8 @@ class Device {
     const VTAMemInsn* mem = reinterpret_cast<const VTAMemInsn*>(insn);
     const VTAGemInsn* gem = reinterpret_cast<const VTAGemInsn*>(insn);
     const VTAAluInsn* alu = reinterpret_cast<const VTAAluInsn*>(insn);
+
+
     switch (mem->opcode) {
       case VTA_OPCODE_LOAD: device->RunLoad(mem); break;
       case VTA_OPCODE_STORE: device->RunStore(mem); break;
@@ -352,7 +362,33 @@ class Device {
         LOG(FATAL) << "Unknown op_code" << mem->opcode;
       }
     }
+
+    trace(insn, device);
   }
+
+  private:
+   static void trace(const VTAGenericInsn* insn, Device * device) {
+     if(device->trace_instructions) {
+       const VTAMemInsn* mem = reinterpret_cast<const VTAMemInsn*>(insn);
+       const VTAGemInsn* gem = reinterpret_cast<const VTAGemInsn*>(insn);
+       const VTAAluInsn* alu = reinterpret_cast<const VTAAluInsn*>(insn);
+
+       std::stringstream ss;
+
+        // extract opcode 
+       switch (mem->opcode) {
+         case VTA_OPCODE_LOAD: ss << "LOAD"; break;
+         case VTA_OPCODE_STORE: ss << "STORE"; break;
+         case VTA_OPCODE_GEMM: ss << "GEMM"; break;
+         case VTA_OPCODE_ALU: ss << "ALU"; break;
+         case VTA_OPCODE_FINISH: ss << "FINISH"; break;
+         default: break;
+       }
+       ss << ",";
+                
+       std::cout << ss.str() << std::endl;
+     }
+   }
 
  private:
   void Run(const VTAGenericInsn* insn) {
