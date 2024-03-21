@@ -324,7 +324,7 @@ class Device {
     dram_ = DRAM::Global();
     ptlpp = TlppVerify::Global();
     const char* env_trace_vta_fsim_instructions = std::getenv("TRACE_VTA_FSIM_INSTRUCTIONS");
-    if(std::string(env_trace_vta_fsim_instructions).compare("1") == 0) {
+    if(env_trace_vta_fsim_instructions != NULL && std::string(env_trace_vta_fsim_instructions).compare("1") == 0) {
       trace_instructions = true;
     }
   }
